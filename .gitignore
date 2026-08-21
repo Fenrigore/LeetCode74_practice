@@ -1,0 +1,84 @@
+# Игнорируем временные файлы, результаты сборки и файлы, создаваемые дополнениями Visual Studio.
+
+# Пользовательские файлы и настройки IDE
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Результаты сборки
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Скрытая папка с настройками Visual Studio
+.vs/
+
+# Результаты тестов MSTest
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# Пакеты NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Файлы кэша Visual Studio и IntelliSense
+*.cache
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.sdf
+*.opensdf
+*.ncb
+
+# Файлы, генерируемые компилятором Visual Studio
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+*.scc
+
+# ReSharper (если используется)
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# TeamCity (если используется)
+_TeamCity*
+
+# DotCover
+*.dotCover
