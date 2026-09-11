@@ -13,10 +13,53 @@
 #include <set>
 #include <map>
 #include <unordered_map>
+#include <cctype>
+#include <queue>
 
 
 using namespace std;
 using namespace std::literals;
+namespace tools {
+    struct ListNode {
+        int val;
+        ListNode* next;
+        ListNode() : val(0), next(nullptr) {}
+        ListNode(int x) : val(x), next(nullptr) {}
+        ListNode(int x, ListNode* next) : val(x), next(next) {}
+    };
+
+    class ListConverter {
+    public:
+        ListNode* createList(const std::vector<int>& vec) {
+            if (vec.empty()) return nullptr;
+            ListNode* head = new ListNode(vec[0]);
+            ListNode* curr = head;
+            for (size_t i = 1; i < vec.size(); ++i) {
+                curr->next = new ListNode(vec[i]);
+                curr = curr->next;
+            }
+            return head;
+        }
+
+        std::vector<int> listToVector(ListNode* head) {
+            std::vector<int> res;
+            while (head != nullptr) {
+                res.push_back(head->val);
+                head = head->next;
+            }
+            return res;
+        }
+    };
+
+    template <typename T>
+    void PrintVector(const std::vector<T>& vec) {
+        std::cout << "{ ";
+        for (const auto& elem : vec) {
+            std::cout << elem << ' ';
+        }
+        std::cout << "}\n";
+    }
+}
 
 namespace problems {
     //слиять слова по буквам по очереди
@@ -740,10 +783,325 @@ namespace problems {
         }
     };
 
+    //Разжатие строки
     class DecodeString {
-    public:
-        string decodeString(string s) {
+    private:
+        void ClearAll() {
+            string_stack_ = {};
+            repeat_count_stack_ = {};
+            current_count_ = {};
+            current_string_ = {};
+        }
 
+        void NewWord() {
+            string_stack_.push(current_string_);
+            repeat_count_stack_.push(current_count_);
+            current_string_ = {};
+            current_count_ = 0;
+        }
+        void EraseWord() {
+            string_stack_.pop();
+            repeat_count_stack_.pop();
+        }
+
+    public:
+        string decodeString(const string& s) {
+            ClearAll();
+            for (int i = 0; i < s.size(); ++i) {
+                //Встретил цифру — обновил current_number
+                if (std::isdigit(s[i])) {
+                    //это надо если до этого были добавлены цифры
+                    //типа если было 1, то стало 10, к нему добавляем текущую цифру
+                    // например 2, и получаем 12. Если было пусто то 0 * 10 = 0, 0 + 2 = 2
+                    current_count_ *= 10;
+                    current_count_ += s[i] - '0';
+                }//Встретил букву — добавил в current_string
+                else if (std::isalpha(s[i])) {
+                    current_string_ += s[i];
+                }//Встретил [ — положил current_string в стек строк, 
+                //положил current_number в стек чисел, а сами переменные 
+                //current_string и current_number обнулил.
+                else if (s[i] == '[') {
+                    NewWord();
+                }
+                else if (s[i] == ']') {
+                    //взял кол-во повторений из стека повторений
+                    std::string repeated_str{};
+                    for (int j = 0; j < repeat_count_stack_.top(); ++j) {
+                        //повторил текущую строку нужное кол-во раз
+                        repeated_str.append(current_string_);
+                    }
+                    //добавил эти повторения к верхнему значению стека строк
+                    string_stack_.top().append(repeated_str);
+                    //полученную строку записал в текущее значение
+                    current_string_ = string_stack_.top();
+                    //и закрыл скобку, удалив верхние значения стеков
+                    EraseWord();
+                }
+            }
+            //возвращать надо текущую строку, в ней сохранена вся последовательность
+            return current_string_;
+        }
+
+    private:
+        std::stack<std::string> string_stack_{};
+        std::stack<int> repeat_count_stack_{};
+        int current_count_{ 0 };
+        std::string current_string_{""};
+    };
+
+    //Подсчет элементов в ограничеснной очереди
+    //типа сколько было obj за последние t = 3000 миллисекунд
+    class RecentCounter {
+    public:
+        RecentCounter() {}
+
+        int ping(int t) {
+            pings_.push(t);
+            while (pings_.front() < t - time) {
+                pings_.pop();
+            }
+            return pings_.size();
+        }
+    private:
+        static constexpr int time{ 3000 };
+        std::queue<int> pings_{};
+    };
+
+    //Бои сенаторов
+    class PredictPartyVictory {
+    public:
+        string predictPartyVictory(const string& senate) {
+            //если последующий != предыдущему, то последующий уничтожается
+            std::queue<size_t> radiant_senate{};
+            std::queue<size_t> dire_senate{};
+            //заполняем очереди значениями индекса
+            //сенаторы будут сражаться по типу (меньше - победил)
+            for (size_t i = 0; i < senate.size(); ++i) {
+                if (senate[i] == 'R') {
+                    radiant_senate.push(i);
+                }
+                else {
+                    dire_senate.push(i);
+                }
+            }
+            //цикл сражения:
+            while (radiant_senate.size() != 0 && dire_senate.size() != 0) {
+                //Если у радианта значение меньше - он победил
+                if (radiant_senate.front() < dire_senate.front()) {
+                    //сенатор из dire уходит
+                    dire_senate.pop();
+                    //сенатор из radiant переходит в конец очереди
+                    //типа берет талон с номером больше чем у последнего (+size() это гарантирует)
+                    radiant_senate.push(radiant_senate.front() + senate.size());
+                    //затем выходит из начала очереди
+                    radiant_senate.pop();
+                }//аналогично с сенаторами dire
+                else {
+                    radiant_senate.pop();
+                    dire_senate.push(dire_senate.front() + senate.size());
+                    dire_senate.pop();
+                }
+            }
+            //тут просто смотрю в какой очереди остались сенаторы
+            return radiant_senate.size() > 0 ? "Radiant" : "Dire";
+        }
+    };
+    using namespace tools;
+
+    //Черепаха и заяц
+    class DeleteMiddle {
+    public:
+        //Эталонный код:
+        ListNode* deleteMiddle(tools::ListNode* head) {
+            //если элемень только один то возвращаем пустой список
+            if (!head->next) {
+                return nullptr;
+            }
+
+            ListNode* turtle = head;
+            ListNode* rabbit = turtle->next->next;
+
+            //Пока rabbit или следующий за ним элементы существуют
+            while (rabbit && rabbit->next) {
+                //перезаписываем все указатели
+                turtle = turtle->next;
+                rabbit = rabbit->next->next;
+            }
+            //как только быстрый указатель упрётся в пустоту
+            //у текущей черепахи перекидываем указатель next дальше
+            turtle->next = turtle->next->next;
+            return head;
+        }
+        ////мой код:
+        //ListNode* deleteMiddle(ListNode* head) {
+        //    ListNode* faster = head;
+        //    ListNode* slower = head;
+        //    ListNode* previous = head;
+
+        //    //если элемент один то вернуть пустой список
+        //    if (faster->next == nullptr) {
+        //        //delete head;
+        //        return nullptr;
+        //    }
+        //    //Пока faster или следующий за ним элементы существуют
+        //    while (faster != nullptr && faster->next != nullptr) {
+        //        //перезаписываем все указатели
+        //        previous = slower;
+        //        slower = slower->next;
+        //        faster = faster->next->next;
+        //    }
+        //    //как только быстрый указатель упрётся в пустоту
+        //    // previous должен начать указывать через один элемент
+        //    // а пропущенный элемент лучше удалить
+        //    previous->next = slower->next;
+        //    //delete slower;
+        //    return head;
+        //}
+    };
+
+    //разделение на четные и нечетные индексы
+    class OddEvenList {
+    public:
+        ListNode* oddEvenList(ListNode* head) {
+            //если список содержит до 2-х элементов включительно - возвращаем что есть
+            if (!head || !head->next || !head->next->next) {
+                return head;
+            }
+            //нужно 3 указателя: на список нечетных элементов
+            ListNode* odd = head;
+            //и на список четных элементов
+            ListNode* even = odd->next;
+            //и начало списка четных
+            ListNode* even_head = even;
+
+            //пока четный и следующий за ним элементы есть (потому что ближе к краю именно четный)
+            while (even && even->next) {
+                //Нечетному записываем в next элемент через один
+                odd->next = odd->next->next;
+                //обновляем указатель
+                odd = odd->next;
+
+                //то же самое делаем для четного
+                even->next = even->next->next;
+                even = even->next;
+            }
+
+            //получилось 2 списка. Объединяем. Для этого последнему 
+            // нечетному указываем что следующий элемент - первый из четных
+            odd->next = even_head;
+
+            //возвращаем head, т.к. из-за работы с указателями манипуляции были произведены и с ним
+            return head;
+        }
+    };
+
+
+    //разворот списка
+    class ReverseList {
+    public:
+        ListNode* reverseList(ListNode* head) {
+            //Если пустой или всего 1 элемент - нечего инвертировать
+            if (head == nullptr || head->next == nullptr) {
+                return head;
+            }
+            //нужны 3 указателя
+            ListNode* previous{ nullptr };
+            ListNode* current = head;
+            ListNode* next = current->next;
+            //задаем текущему элементу предыдущий как следующий
+            //т.к. реальный следующий уже сохранен в next
+            current->next = previous;
+            //пока есть куда идти
+            while (next) {
+                //сдвигаем все элементы вправо
+                previous = current;
+                current = next;
+                next = next->next;
+                //у предыдущего next (текущий current) еще не поменян указатель на следующий.
+                //меняем
+                current->next = previous;
+            }
+            head = current;
+            return head;
+        }
+    };
+
+    //сложение пар противоположностей в односвязном списке
+    //Если использовать зайца и черепаху для поиска середины
+    //затем использовать разворот списка с середины
+    //то получится быстро :)
+    class PairSum {
+    public:
+        //==== ЭТАЛОННОЕ РЕШЕНИЕ ====
+        //Метод разворота из предыдущего задания
+        ListNode* reverseList(ListNode* head) {
+            //Если пустой или всего 1 элемент - нечего инвертировать
+            if (head == nullptr || head->next == nullptr) {
+                return head;
+            }
+            //нужны 3 указателя
+            ListNode* previous{ nullptr };
+            ListNode* current = head;
+            ListNode* next = current->next;
+            //задаем текущему элементу предыдущий как следующий
+            //т.к. реальный следующий уже сохранен в next
+            current->next = previous;
+            //пока есть куда идти
+            while (next) {
+                //сдвигаем все элементы вправо
+                previous = current;
+                current = next;
+                next = next->next;
+                //у предыдущего next (текущий current) еще не поменян указатель на следующий.
+                //меняем
+                current->next = previous;
+            }
+            head = current;
+            return head;
+        }
+
+        int pairSum(ListNode* head) {
+            //Здесь используем зайца и черепаху
+            ListNode* i = head;
+            ListNode* j = head->next;
+            while (j->next) {
+                j = j->next->next;
+                i = i->next;
+            }
+
+            //i->next передаем, т.к. черепаха указывала на i/2, 
+            // это последний элемент из левой половины
+            // а нам нужен первый из правой половины
+            //и так мы получаем указатель на перевернутую правую половину
+            ListNode* reversed_half = reverseList(i->next);
+            int max_summ{ 0 };
+            int current_summ{ 0 };
+
+            //пока эта половина не закончится ищу максимальную сумму
+            while (reversed_half) {
+                max_summ = std::max(max_summ, head->val + reversed_half->val);
+                head = head->next;
+                reversed_half = reversed_half->next;
+            }
+            return max_summ;
+
+            ////==== Это мое решение с массивом. ==== Не сильно то и медленнее
+            //// Если заранее рассчитать размер вектора - то это не ускорит тесты, т.к.
+            //// для этого надо будет 2 раза пройтись по списку
+            //std::vector<int> values;
+            //ListNode* pointer = head;
+            //while (head) {
+            //    values.push_back(head->val);
+            //    head = head->next;
+            //}
+            //int max_summ{ 0 };
+            //int current_summ{ 0 };
+            //for (int i = 0; i < values.size() / 2; ++i) {
+            //    current_summ = values[i] + values[values.size() - 1 - i];
+            //    max_summ = std::max(max_summ, current_summ);
+            //}
+            //return max_summ;
         }
     };
 }//namespace problems
@@ -1064,6 +1422,209 @@ namespace tests {
         assert(solution394.decodeString(s) == expected);
         std::cout << "Decode String is OK" << std::endl;
     }
+
+    void recentCounterTest() {
+        problems::RecentCounter* recent_counter = new problems::RecentCounter();
+        std::vector<int> answer{};
+        answer.push_back(recent_counter->ping(1));
+        answer.push_back(recent_counter->ping(100));
+        answer.push_back(recent_counter->ping(3001));
+        answer.push_back(recent_counter->ping(3002));
+        std::vector<int> expected{ 1,2,3,3 };
+        assert(answer == expected);
+        std::cout << "Number of Recent Calls is OK" << std::endl;
+    }
+
+    void predictPartyVictoryTest() {
+        problems::PredictPartyVictory solution649{};
+        std::string input{ "RD" };
+        std::string output{ "Radiant" };
+        assert(solution649.predictPartyVictory(input) == output);
+        input = "RDD";
+        output = "Dire";
+        assert(solution649.predictPartyVictory(input) == output);
+        std::cout << "Dota2 Senate is OK" << std::endl;
+    }
+
+    void deleteMiddleTest() {
+        problems::DeleteMiddle solution2095{};
+        tools::ListConverter converter{};
+
+        // --- Пример 1 ---
+        std::vector<int> input = { 1, 3, 4, 7, 1, 2, 6 };
+        std::vector<int> expected = { 1, 3, 4, 1, 2, 6 };
+
+        tools::ListNode* head = converter.createList(input);
+        tools::ListNode* result = solution2095.deleteMiddle(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Test 1 passed" << std::endl;
+
+
+        // --- Пример 2 ---
+        input = { 1, 2, 3, 4 };
+        expected = { 1, 2, 4 };
+
+        head = converter.createList(input);
+        result = solution2095.deleteMiddle(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Test 2 passed" << std::endl;
+
+
+        // --- Пример 3 ---
+        input = { 2, 1 };
+        expected = { 2 };
+
+        head = converter.createList(input);
+        result = solution2095.deleteMiddle(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Test 3 passed" << std::endl;
+
+
+        // --- Граничный случай: список из 1 элемента ---
+        input = { 1 };
+        expected = {}; // Пустой вектор
+
+        head = converter.createList(input);
+        result = solution2095.deleteMiddle(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Test 4 (Edge case) passed" << std::endl;
+
+        std::cout << "All Delete Middle Node tests are OK!" << std::endl;
+    }
+
+    void oddEvenListTest() {
+        problems::OddEvenList solution328{};
+        tools::ListConverter converter{};
+
+        // Тест: Пустой список
+        std::vector<int> input = {};
+        std::vector<int> expected = {};
+
+        tools::ListNode*  head = converter.createList(input);
+        tools::ListNode*  result = solution328.oddEvenList(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Тест с пустым списком пройден" << '\n';
+
+        // Тест: Список из 1 элемента
+        input = { 1 };
+        expected = { 1 };
+
+        head = converter.createList(input);
+        result = solution328.oddEvenList(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Тест со списком из 1 элемента пройден" << '\n';
+
+        // Тест: Список из 2 элементов
+        input = { 1, 2 };
+        expected = { 1, 2 }; // 1 - нечетный индекс, 2 - четный индекс
+
+        head = converter.createList(input);
+        result = solution328.oddEvenList(head);
+
+        assert(converter.listToVector(result) == expected);
+        std::cout << "Тест со списком из 2 элементов пройден" << '\n';
+
+        input = { 1,2,3,4,5 };
+        expected = { 1,3,5,2,4 };
+
+        head = converter.createList(input);
+        result = solution328.oddEvenList(head);
+        tools::PrintVector(converter.listToVector(result));
+        assert(converter.listToVector(result) == expected);
+
+        std::cout << "Тест с нечетным количеством элементов пройден" << '\n';
+
+        input = { 2,1,3,5,6,4,7 };
+        expected = { 2,3,6,7,1,5,4 };
+
+        head = converter.createList(input);
+        result = solution328.oddEvenList(head);
+
+        assert(converter.listToVector(result) == expected);
+
+        std::cout << "Тест с четным количеством элементов пройден" << '\n';
+        std::cout << "Odd Even Linked List are OK!" << std::endl;
+    }
+
+    void reverseListTest() {
+        problems::ReverseList solution206{};
+        tools::ListConverter converter{};
+
+        std::vector<int> input{ 1,2,3,4,5 };
+        std::vector<int> expected{ 5,4,3,2,1 };
+
+        tools::ListNode* head = converter.createList(input);
+        tools::ListNode* result = solution206.reverseList(head);
+        
+        auto resultvec = converter.listToVector(result);
+        tools::PrintVector(resultvec);
+        assert(resultvec == expected);
+
+        input = { 1,2 };
+        expected = { 2,1 };
+
+        head = converter.createList(input);
+        result = solution206.reverseList(head);
+
+        assert(converter.listToVector(result) == expected);
+
+        input = { 1 };
+        expected = { 1 };
+
+        head = converter.createList(input);
+        result = solution206.reverseList(head);
+
+        assert(converter.listToVector(result) == expected);
+
+        input = {};
+        expected = {};
+
+        head = converter.createList(input);
+        result = solution206.reverseList(head);
+
+        assert(converter.listToVector(result) == expected);
+
+        std::cout << "Reverse Linked List are OK!" << std::endl;
+    }
+
+    void pairSumTest() {
+        problems::PairSum solution2130{};
+        tools::ListConverter converter{};
+
+        std::vector<int> input;
+        int expected;
+        tools::ListNode* head;
+        int result;
+
+        input = { 5, 4, 2, 1 };
+        expected = 6;
+        head = converter.createList(input);
+        result = solution2130.pairSum(head);
+        assert(result == expected);
+        std::cout << "Тест [5, 4, 2, 1] прошел\n";
+
+        input = { 4, 2, 2, 3 };
+        expected = 7;
+        head = converter.createList(input);
+        result = solution2130.pairSum(head);
+        assert(result == expected);
+        std::cout << "Тест [4, 2, 2, 3] прошел\n";
+
+        input = { 1, 100000 };
+        expected = 100001;
+        head = converter.createList(input);
+        result = solution2130.pairSum(head);
+        assert(result == expected);
+        std::cout << "Тест [1, 100000] прошел\n";
+
+        std::cout << "Maximum Twin Sum of a Linked List tests are OK!" << std::endl;
+    }
 }//namespace tests
 
 
@@ -1094,5 +1655,11 @@ int main(){
     //tests::equalPairsTest();
     //tests::removeStarsTest();
     //tests::asteroidCollisionTests();
-    tests::decodeStringTest();
+    //tests::decodeStringTest();
+    //tests::recentCounterTest();
+    //tests::predictPartyVictoryTest();
+    //tests::deleteMiddleTest();
+    //tests::oddEvenListTest();
+    //tests::reverseListTest();
+    tests::pairSumTest();
 }
