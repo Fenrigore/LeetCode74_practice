@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <cctype>
 #include <queue>
+#include <optional>
 
 
 using namespace std;
@@ -49,6 +50,15 @@ namespace tools {
             }
             return res;
         }
+    };
+
+    struct TreeNode {
+        int val;
+        TreeNode* left;
+        TreeNode* right;
+        TreeNode() : val(0), left(nullptr), right(nullptr) {}
+        TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+        TreeNode(int x, TreeNode* left, TreeNode* right) : val(x), left(left), right(right) {}
     };
 
     template <typename T>
@@ -1104,6 +1114,25 @@ namespace problems {
             //return max_summ;
         }
     };
+
+
+    //рекурсивный DFS
+    class MaxDepth {
+    public:
+        int maxDepth(TreeNode* root) {
+            //если узел пустой возвращаем ноль
+            if (!root) {
+                return 0;
+            }
+            //рекурсивно проходим по левым и правым веткам
+            int left_depth = maxDepth(root->left);
+            int right_depth = maxDepth(root->right);
+
+            //а это как раз и выдает ответ. 
+            //Возвращаем глубину 1 этой ноды + максимальную из глубин левых или правых нод
+            return 1 + std::max(left_depth, right_depth);
+        }
+    };
 }//namespace problems
 
 namespace tests {
@@ -1625,6 +1654,23 @@ namespace tests {
 
         std::cout << "Maximum Twin Sum of a Linked List tests are OK!" << std::endl;
     }
+
+    void maxDepthTest() {
+        using namespace tools;
+        problems::MaxDepth solution104{};
+
+        TreeNode* root = new TreeNode(3 , new TreeNode(9), new TreeNode(20));
+        root->right->left = new TreeNode(15);
+        root->right->right = new TreeNode(7);
+        int excepted = 3;
+        assert(solution104.maxDepth(root) == excepted);
+
+        root = new TreeNode(1, nullptr, new TreeNode(2));
+        excepted = 2;
+
+        assert(solution104.maxDepth(root) == excepted);
+        std::cout << "Maximum Depth of Binary Tree is OK!" << std::endl;
+    }
 }//namespace tests
 
 
@@ -1661,5 +1707,6 @@ int main(){
     //tests::deleteMiddleTest();
     //tests::oddEvenListTest();
     //tests::reverseListTest();
-    tests::pairSumTest();
+    //tests::pairSumTest();
+    tests::maxDepthTest();
 }
