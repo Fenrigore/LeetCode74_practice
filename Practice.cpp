@@ -69,6 +69,59 @@ namespace tools {
         }
         std::cout << "}\n";
     }
+
+
+    class TreeNodeConverter {
+    public:
+        TreeNode* buildTree(const std::vector<std::optional<int>>& vec) {
+            // Если вектор пуст или первый элемент nullopt, дерево пустое
+            if (vec.empty() || !vec[0].has_value()) {
+                return nullptr;
+            }
+
+            // Создаем корневой узел
+            TreeNode* root = new TreeNode(vec[0].value());
+
+            // Очередь для хранения узлов, которым нужно назначить детей
+            std::queue<TreeNode*> q;
+            q.push(root);
+
+            size_t i = 1; // Индекс текущего элемента в векторе (начинаем с 1, так как 0 - это корень)
+
+            while (!q.empty() && i < vec.size()) {
+                TreeNode* current = q.front();
+                q.pop();
+
+                // Назначаем левого ребенка
+                if (i < vec.size()) {
+                    if (vec[i].has_value()) {
+                        current->left = new TreeNode(vec[i].value());
+                        q.push(current->left); // Добавляем в очередь, чтобы позже назначить ему детей
+                    }
+                    i++;
+                }
+
+                // Назначаем правого ребенка
+                if (i < vec.size()) {
+                    if (vec[i].has_value()) {
+                        current->right = new TreeNode(vec[i].value());
+                        q.push(current->right); // Добавляем в очередь
+                    }
+                    i++;
+                }
+            }
+
+            return root;
+        }
+
+        // Вспомогательная функция для освобождения памяти (на случай, если вы тестируете локально)
+        void freeTree(TreeNode* root) {
+            if (!root) return;
+            freeTree(root->left);
+            freeTree(root->right);
+            delete root;
+        }
+    };
 }
 
 namespace problems {
@@ -1133,6 +1186,65 @@ namespace problems {
             return 1 + std::max(left_depth, right_depth);
         }
     };
+
+    class LeafSimilar {
+    public:
+        void GoDeeper(TreeNode* node, std::vector<int>& vec) {
+            if (!node->left && !node->right) {
+                vec.push_back(node->val);
+            }
+            if (node->left) {
+                GoDeeper(node->left, vec);
+            }
+            if (node->right) {
+                GoDeeper(node->right, vec);
+            }
+        }
+
+        bool leafSimilar(TreeNode* root1, TreeNode* root2) {
+            if (!root1 && !root2) {
+                return true;
+            }
+            else if (!root1 || !root2) {
+                return false;
+            }
+            std::vector<int> leafs1, leafs2;
+            GoDeeper(root1, leafs1);
+            GoDeeper(root2, leafs2);
+
+            return leafs1 == leafs2;
+        }
+    };
+
+    class GoodNodes {
+    private:
+        void GoDeeper(TreeNode* node, int last_max_value, int& counter) {
+            if (node->val >= last_max_value) {
+                ++counter;
+                last_max_value = node->val;
+            }
+            if (node->left) {
+                GoDeeper(node->left, last_max_value, counter);
+            }
+            if (node->right) {
+                GoDeeper(node->right, last_max_value, counter);
+            }
+        }
+    public:
+        int goodNodes(TreeNode* root) {
+            if (!root) {
+                return 0;
+            }
+            if (!root->left && !root->right) {
+                return 1;
+            }
+
+            int counter{ 0 };
+            GoDeeper(root, root->val, counter);
+
+            return counter;
+        }
+    };
 }//namespace problems
 
 namespace tests {
@@ -1659,17 +1771,84 @@ namespace tests {
         using namespace tools;
         problems::MaxDepth solution104{};
 
-        TreeNode* root = new TreeNode(3 , new TreeNode(9), new TreeNode(20));
-        root->right->left = new TreeNode(15);
-        root->right->right = new TreeNode(7);
+        //TreeNode* root = new TreeNode(3 , new TreeNode(9), new TreeNode(20));
+        //root->right->left = new TreeNode(15);
+        //root->right->right = new TreeNode(7);
+        tools::TreeNodeConverter converter{};
+        std::vector<std::optional<int>> input{ 3,9,20,nullopt,nullopt,15,7 };
+        TreeNode* root = converter.buildTree(input);
         int excepted = 3;
         assert(solution104.maxDepth(root) == excepted);
+        converter.freeTree(root);
 
-        root = new TreeNode(1, nullptr, new TreeNode(2));
+        input = { 1,nullopt,2 };
+        root = converter.buildTree(input);
         excepted = 2;
 
         assert(solution104.maxDepth(root) == excepted);
+        converter.freeTree(root);
+
         std::cout << "Maximum Depth of Binary Tree is OK!" << std::endl;
+    }
+
+    void leafSimilarTest() {
+        using namespace tools;
+        problems::LeafSimilar solution872{};
+        tools::TreeNodeConverter converter{};
+
+        std::vector<std::optional<int>> input_1{ 3,5,1,6,2,9,8,nullopt,nullopt,7,4 };
+        std::vector<std::optional<int>> input_2{ 3,5,1,6,7,4,2,nullopt,nullopt,nullopt,nullopt,nullopt,nullopt,9,8 };
+
+        TreeNode* root1 = converter.buildTree(input_1);
+        TreeNode* root2 = converter.buildTree(input_2);
+        
+        assert(solution872.leafSimilar(root1, root2));
+        converter.freeTree(root1);
+        converter.freeTree(root2);
+
+        input_1 = { 1,2,3 };
+        input_2 = { 1,3,2 };
+
+        root1 = converter.buildTree(input_1);
+        root2 = converter.buildTree(input_2);
+
+        assert(!solution872.leafSimilar(root1, root2));
+        converter.freeTree(root1);
+        converter.freeTree(root2);
+
+        std::cout << "Leaf-Similar Trees is OK!" << std::endl;
+    }
+
+    void goodNodesTests() {
+        using namespace tools;
+        problems::GoodNodes solution1448{};
+        tools::TreeNodeConverter converter{};
+
+        std::vector<std::optional<int>> input{ 3,1,4,3,nullopt,1,5 };
+        int output{ 4 };
+        TreeNode* root = converter.buildTree(input);
+        assert(solution1448.goodNodes(root) == output);
+        converter.freeTree(root);
+
+        input = { 3,3,nullopt,4,2 };
+        output = 3;
+        root = converter.buildTree(input);
+        assert(solution1448.goodNodes(root) == output);
+        converter.freeTree(root);
+
+        input = { 1 };
+        output = 1;
+        root = converter.buildTree(input);
+        assert(solution1448.goodNodes(root) == output);
+        converter.freeTree(root);
+
+        input = { 9,nullopt,3,6 };
+        output = 1;
+        root = converter.buildTree(input);
+        assert(solution1448.goodNodes(root) == output);
+        converter.freeTree(root);
+
+        std::cout << "Count Good Nodes in Binary Tree is OK!" << std::endl;
     }
 }//namespace tests
 
@@ -1708,5 +1887,7 @@ int main(){
     //tests::oddEvenListTest();
     //tests::reverseListTest();
     //tests::pairSumTest();
-    tests::maxDepthTest();
+    //tests::maxDepthTest();
+    //tests::leafSimilarTest();
+    tests::goodNodesTests();
 }
