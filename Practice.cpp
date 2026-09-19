@@ -1245,6 +1245,114 @@ namespace problems {
             return counter;
         }
     };
+
+    //Прохождение по ветвям, подсчет сумм предыдущих нод, 
+    //подсчет через мапу сколько раз встречались недостающие промежутки
+    class PathSum {
+        void GoDeeper(TreeNode* node, 
+                      long long current_sum, 
+                      std::unordered_map<long long, long long>& prev_summs,
+                      int target, 
+                      int& counter) {
+            //запоминаем текущую сумму
+            current_sum += node->val;
+            //если в прошлых шагах было значение или сумма значений
+            //сумма с которыми даст нам искомый результат - то прибавляем счетчик
+            //с помощью мапы мы можем подсчитать сколько вариантов было найдено
+            //и прибавить кол-во этих вариантов к счетчику.
+            long long to_find = current_sum - target;
+            if (prev_summs.find(to_find) != prev_summs.end()) {
+                counter += prev_summs[to_find];
+            }
+            //записываем текущую сумму в мапу
+            prev_summs[current_sum]++;
+            //проходим рекурсией
+            if (node->left) {
+                GoDeeper(node->left, current_sum, prev_summs, target, counter);
+            }
+            if (node->right) {
+                GoDeeper(node->right, current_sum, prev_summs, target, counter);
+            }
+
+            //при возвращении убираем из мапы текущее значение
+            prev_summs[current_sum]--;
+        }
+
+    public:
+        int pathSum(TreeNode* root, int targetSum) {
+            //если рут пустой то никаких решений нет
+            if (!root) {
+                return 0;
+            }
+            //создаются все необходимые переменные
+            //long long потому что суммы могут быть жесточайше огромными
+            long long current_summ{ 0 };
+            std::unordered_map<long long, long long> summs{};
+            //записываем в мапу чтобы алгоритм мог засчитать те пути, 
+            //которые начинаются ровно с корня дерева. Типа 
+            summs[0] = 1;
+            int counter{ 0 };
+            GoDeeper(root, 0, summs, targetSum, counter);            
+            return counter;
+        }
+    };
+
+    class LongestZigZag {
+    private:
+        enum class Direction {
+            none = 0,
+            root = 1,
+            left = 2,
+            right = 3
+        };
+
+        void GoDeeper(TreeNode* node, 
+                      Direction dir, 
+                      Direction last_dir,
+                      int prev_count,
+                      int& max_zigzag) {
+
+            //если не рут, значит был первый поворот
+            if (dir != Direction::root) {
+                if (dir != last_dir) {
+                    //если направления различаются, то это зигзаг, продолжаем счёт
+                    ++prev_count;
+                }
+                else {
+                    //если направление то же, то начинаем счет заново
+                    prev_count = 1 ;
+                }
+            }
+            //записываем макс значение поворотов
+            max_zigzag = std::max(max_zigzag, prev_count);
+
+            //идём глубже
+            if (node->left) {
+                GoDeeper(node->left, Direction::left, dir, prev_count, max_zigzag);
+            }
+            if (node->right) {
+                GoDeeper(node->right, Direction::right, dir, prev_count, max_zigzag);
+            }
+        }
+    public:
+        int longestZigZag(TreeNode* root) {
+            //проверяем что есть что считать
+            if (!root) {
+                return 0;
+            }
+            else if (!root->left && !root->right) {
+                return 0;
+            }
+
+            //счетчик. Кроме этого ничего не надо, значения поворотов будет хранить счетчик метода
+            int max_zig_zag{ 0 };
+
+            //рекурсия для подсчета
+            GoDeeper(root, Direction::root, Direction::root, 0, max_zig_zag);
+
+            return max_zig_zag;
+        }
+    };
 }//namespace problems
 
 namespace tests {
@@ -1850,6 +1958,63 @@ namespace tests {
 
         std::cout << "Count Good Nodes in Binary Tree is OK!" << std::endl;
     }
+
+    void pathSumTest() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::PathSum solution437{};
+
+        std::vector<std::optional<int>> input;
+        int output;
+        int target;
+        TreeNode* root;
+
+        input = { 10,5,-3,3,2,nullopt,11,3,-2,nullopt,1 };
+        target = 8;
+        output = 3;
+        root = converter.buildTree(input);
+        assert(solution437.pathSum(root, target) == output);
+        converter.freeTree(root);
+
+        input = { 5,4,8,11,nullopt,13,4,7,2,nullopt,nullopt,5,1 };
+        target = 22;
+        output = 3;
+        root = converter.buildTree(input);
+        assert(solution437.pathSum(root, target) == output);
+        converter.freeTree(root);
+
+        std::cout << "Path Sum III is OK!" << std::endl;
+    }
+
+    void longestZigZagTests() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::LongestZigZag solution1372{};
+
+        std::vector<std::optional<int>> input;
+        int output;
+        TreeNode* root;
+
+        input = { 1,nullopt,1,1,1,nullopt,nullopt,1,1,nullopt,1,nullopt,nullopt,nullopt,1 };
+        output = 3;
+        root = converter.buildTree(input);
+        assert(solution1372.longestZigZag(root) == output);
+        converter.freeTree(root);
+
+        input = { 1,1,nullopt,1,1,nullopt,nullopt,1,1,1 };
+        output = 3;
+        root = converter.buildTree(input);
+        assert(solution1372.longestZigZag(root) == output);
+        converter.freeTree(root);
+
+        input = { 1,1,1,nullopt,1,nullopt,nullopt,1,1,nullopt,1 };
+        output = 4;
+        root = converter.buildTree(input);
+        assert(solution1372.longestZigZag(root) == output);
+        converter.freeTree(root);
+
+        std::cout << "Longest ZigZag Path in a Binary Tree is OK!" << std::endl;
+    }
 }//namespace tests
 
 
@@ -1889,5 +2054,7 @@ int main(){
     //tests::pairSumTest();
     //tests::maxDepthTest();
     //tests::leafSimilarTest();
-    tests::goodNodesTests();
+    //tests::goodNodesTests();
+    //tests::pathSumTest();
+    tests::longestZigZagTests();
 }
