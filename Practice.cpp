@@ -91,7 +91,6 @@ namespace tools {
             while (!q.empty() && i < vec.size()) {
                 TreeNode* current = q.front();
                 q.pop();
-
                 // Назначаем левого ребенка
                 if (i < vec.size()) {
                     if (vec[i].has_value()) {
@@ -100,7 +99,6 @@ namespace tools {
                     }
                     i++;
                 }
-
                 // Назначаем правого ребенка
                 if (i < vec.size()) {
                     if (vec[i].has_value()) {
@@ -110,8 +108,30 @@ namespace tools {
                     i++;
                 }
             }
-
             return root;
+        }
+
+        template <typename T>
+        TreeNode* findNodeByValue(TreeNode* node, T value) {
+            //если пустая нода - нечего возвращать
+            if (!node) {
+                return nullptr;
+            }
+            //если нашли совпадение - перекидываем наверх
+            if (node->val == value) {
+                return node;
+            }
+            //если не нашли - идем по рекурсии. создаем указатель для возврата
+            TreeNode* node_with_val = nullptr;
+            //проходим по всем левым нодам и записываем результаты поиска
+            if (node->left) {
+                node_with_val = findNodeByValue<T>(node->left, value);
+            }//если слева ничего не нашлось - смотрим справа
+            if (node->right && !node_with_val) {
+                node_with_val = findNodeByValue<T>(node->right, value);
+            }
+            //тут уже либо что то нашлось, либо нет, возвращаем указатель
+            return node_with_val;
         }
 
         // Вспомогательная функция для освобождения памяти (на случай, если вы тестируете локально)
@@ -122,7 +142,7 @@ namespace tools {
             delete root;
         }
     };
-}
+}//namespace tools
 
 namespace problems {
     //слиять слова по буквам по очереди
@@ -1168,7 +1188,6 @@ namespace problems {
         }
     };
 
-
     //рекурсивный DFS
     class MaxDepth {
     public:
@@ -1353,15 +1372,82 @@ namespace problems {
             return max_zig_zag;
         }
     };
+
+    //поиск бати
+    class LowestCommonAncestor {
+    public:
+        TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {
+            //Если текущий узел пустой - возвращаем пустой результат - no batya
+            if (!root) {
+                return nullptr;
+            }
+            //Если узел найден - это батя - возвращаем его
+            if (root == p || root == q) {
+                return root;
+            }
+            //если не найден - идем рекурсивно по дереву
+            TreeNode* left = lowestCommonAncestor(root->left, p, q);
+            TreeNode* right = lowestCommonAncestor(root->right, p, q);
+
+            //если нашлись оба сынка - значит текущая нода это и есть наименьший общий предок, прокидываем наверх
+            if (left && right) {
+                return root;
+            }
+            //если только одна ветка вернулась - значит в ней находятся обе ноды или уже батя, передаем наверх
+            else if (left || right) {
+                return left != nullptr ? left : right;
+            }
+            return nullptr;
+        }
+    };
+
+    //Поиск в ширину (через очередь)
+    class RightSideView {
+    public:
+        vector<int> rightSideView(TreeNode* root) {
+            //Если дерево пустое - возвращаем пустой массив
+            if (!root) {
+                return {};
+            }
+            std::queue<TreeNode*> queue_;
+            std::vector<int> output;
+            //закидываем в очередь рут
+            queue_.push(root);
+            //пока очередь не пуста
+            while (!queue_.empty()) {
+                //берем размер текущей очереди - она равна ширине уровня дерева
+                size_t lvl_size = queue_.size();
+                //как раз изза этого цикла. В нем идем по ширине уровня (считаем по-человечески с единицы)
+                for (size_t i = 1; i <= lvl_size; ++i) {
+                    //для каждого элемента из очереди добавляем его детей (слева направо)
+                    if (queue_.front()->left) {
+                        queue_.push(queue_.front()->left);
+                    }
+                    if (queue_.front()->right) {
+                        queue_.push(queue_.front()->right);
+                    }
+                    //если это последний из очереди (очередь была из 4-х отцов и это четвертый)
+                    //то это он стоит правее всех элементов в текущем уровне. Записываем.
+                    if (i == lvl_size) {
+                        output.push_back( queue_.front()->val);
+                    }
+                    //затем удаляем из очереди текущий элемент
+                    //в конце этого цикла все отцы уйдут - останется новая очередь из их детей
+                    queue_.pop();
+                }
+            }
+            return output;
+        }
+    };
 }//namespace problems
 
 namespace tests {
     void mergeAlternatelyTest() {
         problems::MergeAlternately solution1768{};
-         assert(solution1768.mergeAlternately("abc"s, "pqr"s) == "apbqcr");
-         assert(solution1768.mergeAlternately("ab"s, "pqrs"s) == "apbqrs");
-         assert(solution1768.mergeAlternately("abcd"s, "pq"s) == "apbqcd");
-         std::cout << "Merge Strings Alternately is OK" << std::endl;
+        assert(solution1768.mergeAlternately("abc"s, "pqr"s) == "apbqcr");
+        assert(solution1768.mergeAlternately("ab"s, "pqrs"s) == "apbqrs");
+        assert(solution1768.mergeAlternately("abcd"s, "pq"s) == "apbqcd");
+        std::cout << "Merge Strings Alternately is OK" << std::endl;
     }
 
     void gcdOfStringsTest() {
@@ -1512,8 +1598,8 @@ namespace tests {
         std::cout << "Maximum Number of Vowels in a Substring of Given Length is OK" << std::endl;
     }
 
-    void longestOnesTest(){
-        problems::LongestOnes solution1004 {};
+    void longestOnesTest() {
+        problems::LongestOnes solution1004{};
         std::vector<int> nums{ 1,1,1,0,0,0,1,1,1,1,0 };
         int k = 2;
         int excepted_output = 6;
@@ -1753,8 +1839,8 @@ namespace tests {
         std::vector<int> input = {};
         std::vector<int> expected = {};
 
-        tools::ListNode*  head = converter.createList(input);
-        tools::ListNode*  result = solution328.oddEvenList(head);
+        tools::ListNode* head = converter.createList(input);
+        tools::ListNode* result = solution328.oddEvenList(head);
 
         assert(converter.listToVector(result) == expected);
         std::cout << "Тест с пустым списком пройден" << '\n';
@@ -1810,7 +1896,7 @@ namespace tests {
 
         tools::ListNode* head = converter.createList(input);
         tools::ListNode* result = solution206.reverseList(head);
-        
+
         auto resultvec = converter.listToVector(result);
         tools::PrintVector(resultvec);
         assert(resultvec == expected);
@@ -1909,7 +1995,7 @@ namespace tests {
 
         TreeNode* root1 = converter.buildTree(input_1);
         TreeNode* root2 = converter.buildTree(input_2);
-        
+
         assert(solution872.leafSimilar(root1, root2));
         converter.freeTree(root1);
         converter.freeTree(root2);
@@ -2015,6 +2101,96 @@ namespace tests {
 
         std::cout << "Longest ZigZag Path in a Binary Tree is OK!" << std::endl;
     }
+
+    void lowestCommonAncestorTest() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::LowestCommonAncestor solution236{};
+
+        std::vector<std::optional<int>> input;
+        TreeNode* output = nullptr;
+        TreeNode* root = nullptr;
+        TreeNode* p = nullptr;
+        TreeNode* q = nullptr;
+
+
+        input = { 3,5,1,6,2,0,8,nullopt,nullopt,7,4 };
+        root = converter.buildTree(input);
+        output = converter.findNodeByValue<int>(root, 3);
+        p = converter.findNodeByValue<int>(root, 5);
+        q = converter.findNodeByValue<int>(root, 1);
+
+        assert(solution236.lowestCommonAncestor(root, p, q) == output);
+        converter.freeTree(root);
+
+        input = { 3,5,1,6,2,0,8,nullopt,nullopt,7,4 };
+        root = converter.buildTree(input);
+        output = converter.findNodeByValue<int>(root, 5);
+        p = converter.findNodeByValue<int>(root, 5);
+        q = converter.findNodeByValue<int>(root, 4);
+
+        assert(solution236.lowestCommonAncestor(root, p, q) == output);
+        converter.freeTree(root);
+
+        std::cout << "Lowest Common Ancestor of a Binary Tree is OK!" << std::endl;
+    }
+
+    void rightSideViewTest() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::RightSideView solution199{};
+
+        std::vector<std::optional<int>> input;
+        std::vector<int> output;
+        TreeNode* root = nullptr;
+        
+
+
+        //input = { 1,2,3,4,nullopt,nullopt,nullopt,5 };
+        //output = { 1,2,3,4,5 };
+        //root = converter.buildTree(input);
+
+        //assert(solution199.rightSideView(root) == output);
+        //converter.freeTree(root);
+
+        //input = { 1,2,3,nullopt,5,nullopt,4 };
+        //output = { 1,2,3,5,4 };
+        //root = converter.buildTree(input);
+
+        //assert(solution199.rightSideView(root) == output);
+        //converter.freeTree(root);
+
+
+        input = { 1,2,3,nullopt,5,nullopt,4 };
+        output = { 1,3,4 };
+        root = converter.buildTree(input);
+
+        assert(solution199.rightSideView(root) == output);
+        converter.freeTree(root);
+
+        input = { 1,2,3,4,nullopt,nullopt,nullopt,5 };
+        output = { 1,3,4,5 };
+        root = converter.buildTree(input);
+        
+        assert(solution199.rightSideView(root) == output);
+        converter.freeTree(root);
+
+        input = { 1,nullopt,3 };
+        output = { 1,3 };
+        root = converter.buildTree(input);
+
+        assert(solution199.rightSideView(root) == output);
+        converter.freeTree(root);
+
+        input = {};
+        output = {};
+        root = converter.buildTree(input);
+
+        assert(solution199.rightSideView(root) == output);
+        converter.freeTree(root);
+
+        std::cout << "Binary Tree Right Side View is OK!" << std::endl;
+    }
 }//namespace tests
 
 
@@ -2056,5 +2232,7 @@ int main(){
     //tests::leafSimilarTest();
     //tests::goodNodesTests();
     //tests::pathSumTest();
-    tests::longestZigZagTests();
+    //tests::longestZigZagTests();
+    //tests::lowestCommonAncestorTest();
+    tests::rightSideViewTest();
 }
