@@ -778,12 +778,12 @@ namespace problems {
             std::vector<int>  vecsecond1, vecsecond2 ;
             std::set<char> setfirst1, setfirst2;
             for (auto [first, second] : map1) {
-                setfirst1.insert(std::move(first));
-                vecsecond1.push_back(std::move(second));
+                setfirst1.insert(first);
+                vecsecond1.push_back(second);
             }
             for (const auto& [first, second] : map2) {
-                setfirst2.insert(std::move(first));
-                vecsecond2.push_back(std::move(second));
+                setfirst2.insert(first);
+                vecsecond2.push_back(second);
             }
             std::ranges::sort(vecsecond1);
             std::ranges::sort(vecsecond2);
@@ -1437,6 +1437,83 @@ namespace problems {
                 }
             }
             return output;
+        }
+    };
+
+    class MaxLevelSum {
+    public:
+        int maxLevelSum(TreeNode* root) {
+            //Если пустое дерево, значит вообще нет уровней
+            if (!root) {
+                return 0;
+            }
+            //готовим счетчики
+            int lvl_counter{ 0 };   //счетчик текущего уровня
+            int summ{ 0 };          //сумма текущего уровня
+            int max_summ_lvl{ INT_MIN };  //максимальная встреченная сумма уровня (может быть отрицательной поэтому INT16_MIN) 
+            int lvl_to_answer_{ 0 };//уровень, на котором была найдена максимальная сумма
+
+            //очередь для реализации уровней
+            std::queue<TreeNode*> tree_queue;
+            //сразу в очередь закидываем рут
+            tree_queue.push(root);
+            //пока в очереди есть ноды
+            while (!tree_queue.empty()) {
+                //мы вышли в первый уровень
+                ++lvl_counter;
+                //текущая очередь = количеству нод на текущем уровне
+                size_t queue_size = tree_queue.size();
+                //обнуляем сумму перед подсчетом
+                summ = 0;
+                //проходим по кол-ву нод в очереди
+                for (size_t i = 1; i <= queue_size; ++i) {
+                    //суммируем значения нод уровня. Чтоб постоянно не вызывать queue.front() просто запишем ноду.
+                    TreeNode* current_node = tree_queue.front();
+                    summ += current_node->val;
+                    //если есть следующие дочерние ноды - добавляем в очередь
+                    if (current_node->left) {
+                        tree_queue.push(current_node->left);
+                    }
+                    if (current_node->right) {
+                        tree_queue.push(current_node->right);
+                    }
+                    //если это была последняя нода в очереди (по счету) сравниваем текущую сумму с максимальной
+                    if (i == queue_size && summ > max_summ_lvl) {
+                        //если текущая сумма оказалась больше - запоминаем ее и на каком уровне найдена
+                        max_summ_lvl = summ;
+                        lvl_to_answer_ = lvl_counter;
+                    }
+                    //удаляем текущий элемент из очереди
+                    tree_queue.pop();
+                }
+            }
+            return lvl_to_answer_;
+        }
+    };
+
+    class SearchBST {
+    public:
+        TreeNode* searchBST(TreeNode* root, int val) {
+            //если пустая нода - нечего возвращать
+            if (!root) {
+                return nullptr;
+            }
+            //если нашли совпадение - перекидываем наверх
+            if (root->val == val) {
+                return root;
+            }
+            //если не нашли - идем по рекурсии. создаем указатель для возврата
+            TreeNode* node_with_val = nullptr;
+            //в зависимости от того, val < или > root->val выбираем направление
+            if (val < root->val) {
+                node_with_val = searchBST(root->left, val);
+            }//
+            else if (val > root->val) {
+                node_with_val = searchBST(root->right, val);
+            }
+
+            //тут уже либо что то нашлось, либо нет, возвращаем указатель
+            return node_with_val;
         }
     };
 }//namespace problems
@@ -2191,6 +2268,65 @@ namespace tests {
 
         std::cout << "Binary Tree Right Side View is OK!" << std::endl;
     }
+
+    void maxLevelSumTest() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::MaxLevelSum solution1161{};
+
+        std::vector<std::optional<int>> input;
+        int output;
+        TreeNode* root = nullptr;
+
+        input = { 1,7,0,7,-8,nullopt,nullopt };
+        root = converter.buildTree(input);
+        output = 2;
+
+        assert(solution1161.maxLevelSum(root) == output);
+        converter.freeTree(root);
+
+
+        input = { 989,nullopt,10250,98693,-89388,nullopt,nullopt,nullopt,-32127 };
+        root = converter.buildTree(input);
+        output = 2;
+
+        assert(solution1161.maxLevelSum(root) == output);
+        converter.freeTree(root);
+
+        std::cout << "Maximum Level Sum of a Binary Tree is OK!" << std::endl;
+    }
+
+    void searchBSTTest() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::SearchBST solution700{};
+
+        std::vector<std::optional<int>> input{};
+        int val{};
+        TreeNode* root{};
+        TreeNode* output{};
+
+        input = { 4,2,7,1,3 };
+        val = 2;
+        root = converter.buildTree(input);
+        output = converter.findNodeByValue(root, val);
+
+        assert(solution700.searchBST(root, val) == output);
+        converter.freeTree(root);
+
+
+
+        input = { 4,2,7,1,3 };
+        val = 5;
+        root = converter.buildTree(input);
+        output = nullptr;
+
+        assert(solution700.searchBST(root, val) == output);
+        converter.freeTree(root);
+
+
+        std::cout << "Search in a Binary Search Tree is OK!" << std::endl;
+    }
 }//namespace tests
 
 
@@ -2234,5 +2370,7 @@ int main(){
     //tests::pathSumTest();
     //tests::longestZigZagTests();
     //tests::lowestCommonAncestorTest();
-    tests::rightSideViewTest();
+    //tests::rightSideViewTest();
+    //tests::maxLevelSumTest();
+    tests::searchBSTTest();
 }
