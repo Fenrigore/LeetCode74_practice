@@ -70,6 +70,15 @@ namespace tools {
         std::cout << "}\n";
     }
 
+    template <typename T>
+    void PrintOptionalVector(const std::vector<std::optional<T>>& vec) {
+        std::cout << "{ ";
+        for (const auto& elem : vec) {
+            std::cout << (elem.has_value() ? std::to_string(elem.value()) : std::string("nullptr")) << ' ';
+        }
+        std::cout << "}\n";
+    }
+
 
     class TreeNodeConverter {
     public:
@@ -132,6 +141,52 @@ namespace tools {
             }
             //тут уже либо что то нашлось, либо нет, возвращаем указатель
             return node_with_val;
+        }
+
+        std::vector<std::optional<int>> GetVecFromTree(TreeNode* tree) {
+            if (!tree) {
+                return {};
+            }
+            //выходной вектор
+            std::vector<std::optional<int>> output{};
+            //очередь нод для прохода в ширину
+            std::queue<TreeNode*> tree_queue{};
+            //переменная для записи значений
+            std::optional<int> child_val;
+            //сразу добавляем текущую ноду в очередь
+            tree_queue.push(tree);
+            //и записываем ее значение в выходной вектор
+            output.push_back(tree->val);
+
+            //пока очередь не пустая
+            while (!tree_queue.empty()){
+                auto cur_node = tree_queue.front();
+                //записываем значения дочерних нод в выходной вектор а сами ноды кидаем в очередь
+                if (cur_node->left) {
+                    output.push_back(cur_node->left->val);
+                    tree_queue.push(cur_node->left);
+                }
+                else {
+                    output.push_back(nullopt);
+                }
+
+                if (cur_node->right) {
+                    output.push_back(cur_node->right->val);
+                    tree_queue.push(cur_node->right);
+                }
+                else {
+                    output.push_back(nullopt);
+                }
+
+                //удаляем текущую ноду из очереди
+                tree_queue.pop();
+            }
+            //чистим nulloptы из конца
+            while (output.back() == std::nullopt) {
+                output.pop_back();
+            }
+
+            return output;
         }
 
         // Вспомогательная функция для освобождения памяти (на случай, если вы тестируете локально)
@@ -1516,6 +1571,86 @@ namespace problems {
             return node_with_val;
         }
     };
+
+    class DeleteNode {
+    public:
+        TreeNode* deleteNode(TreeNode* root, int key) {
+            if (!root) {
+                return nullptr;
+            }
+
+            // Мы идем влево. 
+            // Магия здесь: родитель (root) сам обновляет свой левый указатель 
+            // тем, что вернет рекурсивный вызов.
+            if (key < root->val) {
+                root->left = deleteNode(root->left, key);
+            }
+            else if (key > root->val) {
+                // Идем вправо. Родитель сам обновляет правый указатель.
+                root->right = deleteNode(root->right, key);
+            }
+            else {
+                // Мы нашли узел для удаления (root == искомому узлу)
+                // Случай 1 и 2: нет левого или нет правого ребенка (или нет обоих)
+                if (!root->left) {
+                    TreeNode* temp = root->right;
+                    delete root;
+                    return temp;
+                }
+                if (!root->right) {
+                    TreeNode* temp = root->left;
+                    delete root;
+                    return temp;
+                }
+                // Случай 3: оба ребенка есть
+                // 1. Находим наименьший узел в правом поддереве (inorder successor)
+                TreeNode* minRight = root->right;
+                while (minRight->left != nullptr) {
+                    minRight = minRight->left;
+                }
+
+                // 2. Копируем значение этого наименьшего узла в текущий удаляемый узел
+                // (Теперь текущий узел "притворяется" наименьшим узлом правого поддерева)
+                root->val = minRight->val;
+
+                // 3. Рекурсивно удаляем этот дубликат наименьшего узла из правого поддерева.
+                // Поскольку это наименьший узел, у него точно нет левого ребенка, 
+                // поэтому рекурсия остановится на Случае 1 или 2 и корректно сделает delete.
+                root->right = deleteNode(root->right, minRight->val);
+            }
+            return root;
+        }
+    };
+
+    class CanVisitAllRooms {
+    public:
+        bool canVisitAllRooms(vector<vector<int>>& rooms) {
+            //ключница
+            std::queue<int> keys;
+            //список использованных ключей
+            std::unordered_set<int> used_keys;
+            int current_key{};
+            //ключ от нулевой комнаты изначально есть
+            keys.push(0);
+            //пока ключница не пуста
+            while (!keys.empty()) {
+                current_key = keys.front();
+                //проверяем что ключ от какой то из существующих комнат и не был в списке использованных
+                if (current_key >= 0 && current_key < rooms.size() && !used_keys.contains(current_key)) {
+                    //открыли ключем комнату и собрали все ключи в ней
+                    for (const auto& key : rooms[current_key]) {
+                        keys.push(key);
+                    }
+                }
+                //записали ключ в список использованных
+                used_keys.insert(current_key);
+                //убрали из ключницы
+                keys.pop();
+            }
+            //проверяем совпадение количества комнат и кол-ва ключей
+            return rooms.size() == used_keys.size();
+        }
+    };
 }//namespace problems
 
 namespace tests {
@@ -2327,6 +2462,73 @@ namespace tests {
 
         std::cout << "Search in a Binary Search Tree is OK!" << std::endl;
     }
+
+    void deleteNodeTest() {
+        using namespace tools;
+        tools::TreeNodeConverter converter{};
+        problems::DeleteNode solution450{};
+
+        std::vector<std::optional<int>> input;
+        TreeNode* root = nullptr;
+        std::vector<std::optional<int>> etalon_output;
+        int key{};
+
+        input = { 5,3,6,2,4,nullopt,7 };
+        root = converter.buildTree(input);
+        key = 0;
+        etalon_output = converter.GetVecFromTree(solution450.deleteNode(root, key));
+
+        assert(input == etalon_output);
+        converter.freeTree(root);
+
+
+        input = { 5,3,6,2,4,nullopt,7 };
+        root = converter.buildTree(input);
+        key = 3;
+        etalon_output = { 5,4,6,2,nullopt,nullopt,7 };
+
+        assert(converter.GetVecFromTree(solution450.deleteNode(root, key)) == etalon_output);
+        converter.freeTree(root);
+
+        input = {};
+        root = converter.buildTree(input);
+        key = 0;
+        etalon_output = {};
+
+        assert(converter.GetVecFromTree(solution450.deleteNode(root, key)) == etalon_output);
+        converter.freeTree(root);
+
+        std::cout << "Delete Node in a BST is OK!" << std::endl;
+    }
+
+    void testPrintFunc() {
+        std::cout << "Hello, dude!" << std::endl;
+    }
+
+    void canVisitAllRoomsTest() {
+        problems::CanVisitAllRooms solution841{};
+
+        std::vector<std::vector<int>> input;
+        bool expected;
+
+        input = { {1},{2}, {3},{} };
+        expected = true;
+
+        assert(solution841.canVisitAllRooms(input) == expected);
+
+
+        input = { {1,3},{3,0,1},{2},{0} };
+        expected = false;
+
+        assert(solution841.canVisitAllRooms(input) == expected);
+
+        input = { {2},{},{1} };
+        expected = true;
+
+        assert(solution841.canVisitAllRooms(input) == expected);
+
+        std::cout << "Keys and Rooms is OK!" << std::endl;
+    }
 }//namespace tests
 
 
@@ -2372,5 +2574,7 @@ int main(){
     //tests::lowestCommonAncestorTest();
     //tests::rightSideViewTest();
     //tests::maxLevelSumTest();
-    tests::searchBSTTest();
+    //tests::searchBSTTest();
+    //tests::deleteNodeTest();
+    tests::canVisitAllRoomsTest();
 }
