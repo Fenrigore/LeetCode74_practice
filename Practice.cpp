@@ -1651,6 +1651,113 @@ namespace problems {
             return rooms.size() == used_keys.size();
         }
     };
+
+    //поиск связанных городов
+    class FindCircleNum {
+    public:
+        int findCircleNum(vector<vector<int>>& isConnected) {
+            //в сет записать текущий индекс. Пройти по всем индексам подвектора
+            //Сравнить, если такого индекса в set нет, то добавить в очередь.
+            //пройтись по всем элементам в очереди.
+            //Для этого закидываем текущий индекс в сет, проходим по всем индексам в этом подвекторе
+            //Сравнить, если такого индекса в set нет, то добавить в очередь. И т.д.
+
+            std::vector<bool> visited_cities(isConnected.size(), false); //отмечаем посещенные города
+            int provinces{ 0 }; //список провинций
+            //проходим по каждому городу
+            for (int i = 0; i < isConnected.size(); ++i) {
+                //если посещен - переходим к следующему городу
+                if (visited_cities[i]) {
+                    continue;
+                }
+                //если он не был еще посещен, то это новая провинция. 
+                ++provinces;
+                //создаем очередь из городов, которые можно посетить
+                std::queue<int> connected_cities{};
+                //добавляем текущий город к посещению
+                connected_cities.push(i);
+                //сразу записываем текущий город как посещенный, чтоб он не добавился в очередь снова
+                visited_cities[i] = true;
+                //пока есть что посетить
+                while (!connected_cities.empty()) {
+                    //берем индекс текущего города
+                    int current_city = connected_cities.front();
+                    //проходим по каждому элементку текущего города
+                    for (int j = 0; j < isConnected[current_city].size(); ++j) {
+                        //если соседний с текущим город не посещен и он есть в списке у текущего города
+                        if (visited_cities[j] == false && isConnected[current_city][j] == 1) {
+                            //добавляем его в очередь
+                            connected_cities.push(j);
+                            //и отмечаем как посещенный, чтоб он не добавился в очередь снова
+                            //Т.к. он в очереди, то его коннекты будут проверены, но дубликатов уже не будет
+                            visited_cities[j] = true;
+                        }
+                    }
+                    //удяляем текущий город из очереди, он уже проверен и отмечен как посещенный
+                    connected_cities.pop();
+                }
+            }
+            return provinces;
+        }
+    };
+
+    class MinReorder {
+        enum class direction : char {
+            none = 0,
+            to = 1,
+            from = 2
+        };
+
+        struct City {
+            //индекс смежного города и направление.
+            std::vector<std::pair<int, direction>> iss{};
+        };
+
+    public:
+        int minReorder(int n, const vector<vector<int>>& connections) {
+            //список смежности
+            std::vector<City> cities(n);
+            //список посещенных городов по индексам
+            std::vector<bool> visited_cities(n);
+            //очередь индексов городов к посещению
+            std::queue<City*> need_to_visit;
+            //счетчик измененных направлений
+            int changed_counter{ 0 };
+
+            //первым делом заполняем список смежности
+            for (const auto& road : connections) {
+                //записываем в города, указанные в дорогах их соседа и направление к нему
+                cities[road[0]].iss.push_back({ road[1], direction::to });
+                cities[road[1]].iss.push_back({ road[0], direction::from });
+            }
+            
+            //теперь добавляю в очередь нулевой город и отмечаю его как посещенный, чтоб второй раз не добавился
+            need_to_visit.push(&cities[0]);
+            visited_cities[0] = true;
+
+            //пока очередь не пуста
+            while (!need_to_visit.empty()){
+                //берем текущий город
+                const City* current_city = need_to_visit.front();
+                //проходимся по каждому соседу
+                for (const auto& [city, dir] : current_city->iss) {
+                    //если сосед не был посещен
+                    if (!visited_cities[city]) {
+                        //прибавляем счетчик. Если путь от текущего города к соседу - его придется развернуть 
+                        //Логика такая:  «Текущий город» находится ближе к 0.
+                        //потому что идти мы начинаем от 0, а сосед, к которому мы идем - топологически дальше
+                        changed_counter += dir == direction::to ? 1 : 0;
+                        need_to_visit.push(&cities[city]);
+                        visited_cities[city] = true;
+                    }
+                }
+                //удаляем текущий элемент из очереди
+                need_to_visit.pop();
+            }
+            //ну и возвращаем кол-во перевернутых направлений
+            return changed_counter;
+        }
+    };
 }//namespace problems
 
 namespace tests {
@@ -2501,10 +2608,6 @@ namespace tests {
         std::cout << "Delete Node in a BST is OK!" << std::endl;
     }
 
-    void testPrintFunc() {
-        std::cout << "Hello, dude!" << std::endl;
-    }
-
     void canVisitAllRoomsTest() {
         problems::CanVisitAllRooms solution841{};
 
@@ -2528,6 +2631,49 @@ namespace tests {
         assert(solution841.canVisitAllRooms(input) == expected);
 
         std::cout << "Keys and Rooms is OK!" << std::endl;
+    }
+
+    void findCircleNumTest() {
+        problems::FindCircleNum solution547{};
+
+        std::vector<std::vector<int>> input;
+        int output;
+
+        input = { {1,1,0},{1,1,0},{0,0,1} };
+        output = 2;
+
+        assert(solution547.findCircleNum(input) == output);
+
+        input = { {1,0,0},{0,1,0},{0,0,1} };
+        output = 3;
+
+        assert(solution547.findCircleNum(input) == output);
+        std::cout << "Number of Provinces is OK!" << std::endl;
+    }
+
+    void minReorderTest() {
+        problems::MinReorder solution1466{};
+
+        std::vector<std::vector<int>> connections;
+        int n;
+        int output;
+
+        connections = { {0,1},{1,3},{2,3},{4,0},{4,5} };
+        n = 6;
+        output = 3;
+        assert(solution1466.minReorder(n, connections) == output);
+
+        connections = { {1,0},{1,2},{3,2},{3,4} };
+        n = 5;
+        output = 2;
+        assert(solution1466.minReorder(n, connections) == output);
+
+        connections = { {1,0},{2,0} };
+        n = 3;
+        output = 0;
+        assert(solution1466.minReorder(n, connections) == output);
+
+        std::cout << "Reorder Routes to Make All Paths Lead to the City Zero is OK!" << std::endl;
     }
 }//namespace tests
 
@@ -2576,5 +2722,6 @@ int main(){
     //tests::maxLevelSumTest();
     //tests::searchBSTTest();
     //tests::deleteNodeTest();
-    tests::canVisitAllRoomsTest();
+    //tests::canVisitAllRoomsTest();
+    tests::findCircleNumTest();
 }
