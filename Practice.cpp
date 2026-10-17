@@ -63,20 +63,32 @@ namespace tools {
 
     template <typename T>
     void PrintVector(const std::vector<T>& vec) {
-        std::cout << "{ ";
+        std::cout << "{";
+        bool first = true;
+        std::string space{ " " };
         for (const auto& elem : vec) {
-            std::cout << elem << ' ';
+            std::cout << space << elem;
+            if (first) {
+                space = ", ";
+                first = false;
+            }
         }
-        std::cout << "}\n";
+        std::cout << " }\n";
     }
 
     template <typename T>
     void PrintOptionalVector(const std::vector<std::optional<T>>& vec) {
-        std::cout << "{ ";
+        std::cout << "{";
+        bool first = true;
+        std::string space{ " " };
         for (const auto& elem : vec) {
-            std::cout << (elem.has_value() ? std::to_string(elem.value()) : std::string("nullptr")) << ' ';
+            std::cout << space << (elem.has_value() ? std::to_string(elem.value()) : std::string("nullptr"));
+            if (first) {
+                space = ", ";
+                first = false;
+            }
         }
-        std::cout << "}\n";
+        std::cout << " }\n";
     }
 
 
@@ -1758,6 +1770,135 @@ namespace problems {
             return changed_counter;
         }
     };
+
+    class CalcEquation {
+        struct Element {
+            //имя элемента
+            std::string name;
+            //Соседи с дистанцией до них
+            std::unordered_map<std::string, double > NWD;
+        };
+
+        Element* FindElem(const std::string& name, std::deque<Element>& container) {
+            auto elem_it = std::ranges::find(container, name, &Element::name);
+            if (elem_it != container.end()) {
+                return &(*elem_it);
+            }
+            return nullptr;
+        }
+    public:
+        vector<double> calcEquation(vector<vector<string>>& equations, vector<double>& values, vector<vector<string>>& queries) {
+            //переменная для ответа
+            vector<double> answer{};
+            //Сюда запишем текущий элемент и пары "соседствующий и сколько до него"
+            //deque потому что буду получать указатели на элементы, а дека не аллоцируется
+            std::deque<Element> elements;
+
+            //заполняю вектор elements
+
+            for (int i = 0; i < equations.size(); ++i) {
+                //тут прохожу по всем элементам и делаю записи прямых и обратных связей
+                const std::string& left_elem_name = equations[i][0];
+                const std::string& right_elem_name = equations[i][1];
+                Element* left_elem = FindElem(left_elem_name, elements);
+                Element* right_elem = FindElem(right_elem_name, elements);
+                //Если какой либо из элементов еще не был записан - записываю.
+                if (!left_elem) {
+                    Element new_left_elem;
+                    new_left_elem.name = left_elem_name;
+                    elements.push_back(std::move(new_left_elem));
+                    left_elem = &elements.back();
+                }
+                if (!right_elem) {
+                    Element new_right_element;
+                    new_right_element.name = right_elem_name;
+                    elements.push_back(std::move(new_right_element));
+                    right_elem = &elements.back();
+                }
+                left_elem->NWD.insert({ right_elem_name , values[i] });
+                right_elem->NWD.insert({ left_elem_name , 1/ values[i] });
+            }
+
+            //проход в ширину и вычисление элементов answer
+
+            //тут первый цикл, проходим по всем элементам входного параметра queries 
+            //и ищем путь от queries[i][0] до queries[i][1]
+            for (const auto& para_imen_v_vectore : queries) {
+                std::string name_from = para_imen_v_vectore[0];
+                std::string name_to = para_imen_v_vectore[1];
+                
+
+                //если хотяб какого элемента нет в списке элементов - путь равен минус единице
+                Element* elem_from = FindElem(name_from, elements);
+                Element* elem_to = FindElem(name_to, elements);
+                if (!elem_from || !elem_to) {
+                    answer.push_back(-1.);
+                    continue;
+                }
+
+                //если это один элемент - путь равен единице
+                if (name_from == name_to) {
+                    answer.push_back(1.);
+                    continue;
+                }
+
+                //если все ок - переходим к поиску пути
+
+                //вектор для того, чтоб отмечать какие элементы были посещены.
+                //просто проверяю по имени есть ли элемент в сэте и всё.
+                std::unordered_set<std::string> visited{};
+
+                //эта переменная хранит на текущий элемент и накопленный вес
+                std::queue<std::pair<Element*, double>> queue_of_elements;
+                visited.insert(name_from);
+                queue_of_elements.push({ elem_from, 1 });
+
+                auto find_distance = [&]()->double {
+                    while (!queue_of_elements.empty()) {
+                        //получаем ссылки на текущий элемент и его дистанцию, чтоб с ними работать
+                        auto& [elem_pointer, distance] = queue_of_elements.front();
+                        //проходим по всем соседям у этого элемента и добавляем их в очереди, если они еще не были посещены
+                        for (const auto& neighbour : elem_pointer->NWD) {
+
+                            //если сосед был посещен
+                            if (visited.contains(neighbour.first)) {
+                                //переходим к следующему соседу
+                                continue;
+                            }
+                            //если нет - записываем его имя в список посещённых
+                            visited.insert(neighbour.first);
+                            //а самого соседа в очередь. Для этого получаем указатель на соседа
+                            Element* neighbour_ptr = FindElem(neighbour.first, elements);
+                            //получаем дистанцию до него
+                            double new_distance = distance * neighbour.second;
+
+                            //если это искомый элемент, то djpdhfoftv значение дистанции до него
+                            if (neighbour_ptr == elem_to) {
+                                return new_distance;
+                            }
+
+                            //если это не искомый элемент - записываем в очередь
+                            queue_of_elements.push({ neighbour_ptr,  new_distance });
+                        }
+                        //убираем текущий элемент из очереди
+                        queue_of_elements.pop();
+                    }
+                    return -1.;
+                };
+
+                answer.push_back(find_distance());
+            }
+
+            return answer;
+        }
+    };
+
+    class NearestExit {
+    public:
+        int nearestExit(vector<vector<char>>& maze, vector<int>& entrance) {
+            return {};
+        }
+    };
 }//namespace problems
 
 namespace tests {
@@ -2675,6 +2816,135 @@ namespace tests {
 
         std::cout << "Reorder Routes to Make All Paths Lead to the City Zero is OK!" << std::endl;
     }
+
+    void calcEquationTest() {
+        problems::CalcEquation solution339{};
+
+        std::vector<std::vector<std::string>> equations{};
+        std::vector<double> values{};
+        std::vector<std::vector<std::string>> queries{};
+        std::vector<double> output{};
+        std::vector<double> answer{};
+
+        equations = { {"a", "b"}, {"b", "c"} };
+        values = { 2.0, 3.0 };
+        queries = { {"a", "c"}, {"b", "a"}, {"a", "e"}, {"a", "a"}, {"x", "x"} };
+        output = { 6.00000, 0.50000, -1.00000, 1.00000, -1.00000 };
+        answer = solution339.calcEquation(equations, values, queries);
+        bool is_OK1 = answer == output;
+
+        if (!is_OK1){
+            std::cout << "Первый пример не пройден" << '\n';
+            std::cout << "Должно быть: ";
+            tools::PrintVector(output);
+            std::cout << "Вывод: ";
+            tools::PrintVector(answer);
+            std::cout << '\n';
+        }
+        else {
+            std::cout << "Первый пример: ОК" << '\n';
+        }
+
+        equations = { {"a", "b"}, {"b", "c"}, {"bc", "cd"} };
+        values = { 1.5, 2.5, 5.0 };
+        queries = { {"a", "c"}, {"c", "b"}, {"bc", "cd"}, {"cd", "bc"} };
+        output = { 3.75000, 0.40000, 5.00000, 0.20000 };
+        answer = solution339.calcEquation(equations, values, queries);
+        bool is_OK2 = answer == output;
+
+        if (!is_OK2) {
+            std::cout << "Второй пример не пройден" << '\n';
+            std::cout << "Должно быть: ";
+            tools::PrintVector(output);
+            std::cout << "Вывод: ";
+            tools::PrintVector(answer);
+            std::cout << '\n';
+        }
+        else {
+            std::cout << "Второй пример: ОК" << '\n';
+        }
+
+        equations = { {"a", "b"} };
+        values = { 0.5 };
+        queries = { {"a", "b"}, {"b", "a"}, {"a", "c"}, {"x", "y"} };
+        output = { 0.50000, 2.00000, -1.00000, -1.00000 };
+        answer = solution339.calcEquation(equations, values, queries);
+        bool is_OK3 = answer == output;
+
+        if (!is_OK3) {
+            std::cout << "Третий пример не пройден" << '\n';
+            std::cout << "Должно быть: ";
+            tools::PrintVector(output);
+            std::cout << "Вывод: ";
+            tools::PrintVector(answer);
+            std::cout << '\n';
+        }
+        else {
+            std::cout << "Третий пример: ОК" << '\n';
+        }
+        std::cout << "Evaluate Division is " << (is_OK1 && is_OK2 && is_OK3 ? "" : "NOT ") << "OK" << std::endl;
+    }
+
+    void nearestExitTest() {
+        problems::NearestExit solution1926{};
+
+        vector<vector<char>> maze{};
+        vector<int> entrance{};
+        int expected{};
+        int result{};
+
+        //======== Первый пример =========
+        maze = {
+            {'+', '+', '.', '+'},
+            {'.', '.', '.', '+'},
+            {'+', '+', '+', '.'}
+        };
+        entrance = { 1, 2 };
+        expected = 1;
+        result = solution1926.nearestExit(maze, entrance);
+        bool is_OK1 = expected == result;
+
+        if (is_OK1) { std::cout << "Первый пример: ОК" << '\n'; }
+        else {
+            std::cout << "Первый пример не пройден" 
+                << "\nОжидалось: " << expected << ", получено: " << result << '\n';
+        }
+
+        //======== Второй пример =========
+        maze = {
+            {'+', '+', '+'},
+            {'.', '.', '.'},
+            {'+', '+', '+'}
+        };
+        entrance = { 1, 0 };
+        expected = 2;
+        result = solution1926.nearestExit(maze, entrance);
+        bool is_OK2 = expected == result;
+
+        if (is_OK2) { std::cout << "Первый пример: ОК" << '\n'; }
+        else {
+            std::cout << "Первый пример не пройден"
+                << "\nОжидалось: " << expected << ", получено: " << result << '\n';
+        }
+
+        //======== Третий пример =========
+        maze = {
+            {'.', '+'}
+        };
+        entrance = { 0, 0 };
+        expected = -1;
+        result = solution1926.nearestExit(maze, entrance);
+        bool is_OK3 = expected == result;
+
+        if (is_OK3) { std::cout << "Первый пример: ОК" << '\n'; }
+        else {
+            std::cout << "Первый пример не пройден"
+                << "\nОжидалось: " << expected << ", получено: " << result << '\n';
+        }
+
+
+        std::cout << "Nearest Exit from Entrance in Maze is " << (is_OK1 && is_OK2 && is_OK3 ? "" : "NOT ") << "OK" << std::endl;
+    }
 }//namespace tests
 
 
@@ -2723,5 +2993,7 @@ int main(){
     //tests::searchBSTTest();
     //tests::deleteNodeTest();
     //tests::canVisitAllRoomsTest();
-    tests::findCircleNumTest();
+    //tests::findCircleNumTest();
+    //tests::calcEquationTest();
+    tests::nearestExitTest();
 }
